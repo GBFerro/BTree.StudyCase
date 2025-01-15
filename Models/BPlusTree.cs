@@ -30,12 +30,33 @@ public class BPlusTree<T> where T : IComparable<T>
 
         Node<T> oldNode = Root;
         Root = new Node<T>(Degree);
-        // split node
+        Root.AddChildren(0, oldNode);
+        SplitNode(this.Root, 0, oldNode);
         InsertKeyIntoNode(Root, key);
         Height++;
     }
 
-    private static void InsertKeyIntoNode(Node<T> node, T key)
+    private void SplitNode(Node<T> parentNode, int position, Node<T> oldNode)
+    {
+        var rightNode = new Node<T>(Degree);
+
+        var splitIndex = Degree - 1;
+        var range = Degree - 1;
+
+        parentNode.Keys.Insert(position, oldNode.Keys[splitIndex]);
+        parentNode.AddChildren(position + 1, rightNode);
+        rightNode.Keys.AddRange(oldNode.Keys.GetRange(index: Degree, count: range));
+        oldNode.Keys.RemoveRange(splitIndex, count: Degree);
+
+
+        if (!oldNode.IsLeaf)
+        {
+            rightNode.Children.AddRange(oldNode.Children.GetRange(Degree, Degree));
+            oldNode.Children.RemoveRange(Degree, Degree);
+        }
+    }
+
+    private void InsertKeyIntoNode(Node<T> node, T key)
     {
         int position = node.Keys.TakeWhile(nodeKey => key.CompareTo(nodeKey) >= 0).Count();
 
@@ -48,8 +69,8 @@ public class BPlusTree<T> where T : IComparable<T>
         var child = node.Children[position];
         if (child.HasMaxKeys)
         {
-            // split child
-            if (key.CompareTo(child.Keys[position]) > 0)
+            SplitNode(node, position, child);
+            if (key.CompareTo(node.Keys[position]) > 0)
             {
                 position++;
             }

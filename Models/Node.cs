@@ -3,11 +3,10 @@
 public class Node<T> where T : IComparable<T>
 {
     private readonly int _t;
-    private readonly int _childrenCount;
 
-    public IList<Node<T>> Children { get; set; }
+    public List<Node<T>> Children { get; set; }
 
-    public IList<T> Keys { get; set; }
+    public List<T> Keys { get; set; }
 
     public bool IsLeaf
     {
@@ -24,6 +23,11 @@ public class Node<T> where T : IComparable<T>
     public void AddKeyToNode(T keyValue, int position)
     {
         Keys.Insert(position, keyValue);
+    }
+
+    public void AddChildren(int position, Node<T> rightNode)
+    {
+        Children.Insert(position, rightNode);
     }
 
     public Node(int degree)
