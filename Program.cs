@@ -29,4 +29,9 @@ btree.InsertNode(7);
 btree.InsertNode(2);
 btree.InsertNode(18);
 
+Console.WriteLine(btree.SearchKey(6));
+Console.WriteLine(btree.SearchKey(1000));
+Console.WriteLine(btree.SearchKey(95));
+
+
 btree.PrintTree();

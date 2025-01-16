@@ -36,24 +36,29 @@ public class BPlusTree<T> where T : IComparable<T>
         Height++;
     }
 
-    private void SplitNode(Node<T> parentNode, int position, Node<T> oldNode)
+    public bool SearchKey(T key)
     {
-        var rightNode = new Node<T>(Degree);
+        return SearchKeyInternal(Root, key);
+    }
 
-        var splitIndex = Degree - 1;
-        var range = Degree - 1;
+    private static bool SearchKeyInternal(Node<T> node, T key)
+    {
+        var hasKey = node.Keys.Contains(key);
 
-        parentNode.Keys.Insert(position, oldNode.Keys[splitIndex]);
-        parentNode.AddChildren(position + 1, rightNode);
-        rightNode.Keys.AddRange(oldNode.Keys.GetRange(index: Degree, count: range));
-        oldNode.Keys.RemoveRange(splitIndex, count: Degree);
-
-
-        if (!oldNode.IsLeaf)
+        if (hasKey)
         {
-            rightNode.Children.AddRange(oldNode.Children.GetRange(Degree, Degree));
-            oldNode.Children.RemoveRange(Degree, Degree);
+            return true;
         }
+
+        var position = node.Keys.TakeWhile(nodeKey => key.CompareTo(nodeKey) > 0).Count();
+
+        if (!node.IsLeaf)
+        {
+            var child = node.Children[position];
+            return SearchKeyInternal(child, key);
+        }
+
+        return false;
     }
 
     private void InsertKeyIntoNode(Node<T> node, T key)
@@ -77,6 +82,62 @@ public class BPlusTree<T> where T : IComparable<T>
         }
 
         InsertKeyIntoNode(node.Children[position], key);
+    }
+
+    private void SplitNode(Node<T> parentNode, int position, Node<T> oldNode)
+    {
+        var newNode = new Node<T>(Degree);
+
+        var splitIndex = Degree - 1;
+        var range = Degree - 1;
+
+        parentNode.Keys.Insert(position, oldNode.Keys[splitIndex]);
+        parentNode.AddChildren(position + 1, newNode);
+
+        newNode.Keys.AddRange(oldNode.Keys.GetRange(index: Degree, count: range));
+
+        oldNode.Keys.RemoveRange(splitIndex, count: Degree);
+
+        if (!oldNode.IsLeaf)
+        {
+            newNode.Children.AddRange(oldNode.Children.GetRange(Degree, Degree));
+            oldNode.Children.RemoveRange(Degree, Degree);
+        }
+    }
+
+    public void DeleteKeyFromNode(T key)
+    {
+        DeleteKeyFromNodeInternal(Root, key);
+
+        if (Root.Keys.Count == 0 && !Root.IsLeaf)
+        {
+            Root = Root.Children.Single();
+            Height--;
+        }
+    }
+
+    private void DeleteKeyFromNodeInternal(Node<T> node, T key)
+    {
+        var position = node.Keys.TakeWhile(nodeKey => key.CompareTo(nodeKey) > 0).Count();
+
+        if (position < node.Keys.Count && node.Keys.Contains(key))
+        {
+            DeleteKeyFromNodeInternal(node, key, position);
+            return;
+        }
+    }
+
+    private void DeleteKeyFromNodeInternal(Node<T> node, T key, int position)
+    {
+        if (node.IsLeaf && node.Keys.Contains(key))
+        {
+            node.Keys.Remove(key);
+        }
+
+        if (node.Children[position].Keys.Count() > Degree)
+        {
+
+        }
     }
 
     public void PrintTree()
