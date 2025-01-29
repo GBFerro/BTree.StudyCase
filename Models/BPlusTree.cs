@@ -105,9 +105,9 @@ public class BPlusTree<T> where T : IComparable<T>
         }
     }
 
-    public void DeleteKeyFromNode(T key)
+    public void DeleteKey(T key)
     {
-        DeleteKeyFromNodeInternal(Root, key);
+        DeleteKeyInternal(Root, key);
 
         if (Root.Keys.Count == 0 && !Root.IsLeaf)
         {
@@ -116,28 +116,128 @@ public class BPlusTree<T> where T : IComparable<T>
         }
     }
 
-    private void DeleteKeyFromNodeInternal(Node<T> node, T key)
+    private void DeleteKeyInternal(Node<T> node, T key)
     {
-        var position = node.Keys.TakeWhile(nodeKey => key.CompareTo(nodeKey) > 0).Count();
+        int position = node.Keys.TakeWhile(nodeKey => key.CompareTo(nodeKey) >= 0).Count();
 
-        if (position < node.Keys.Count && node.Keys.Contains(key))
+        if (node.Keys.Count > position && node.Keys[position].CompareTo(key) == 0)
         {
-            DeleteKeyFromNodeInternal(node, key, position);
-            return;
+            DeleteKeyFromNode(node, key, position);
+        }
+
+        if (!node.IsLeaf)
+        {
+            DeleteKeyFromSubtree(node, key, position);
         }
     }
 
-    private void DeleteKeyFromNodeInternal(Node<T> node, T key, int position)
+    private void DeleteKeyFromSubtree(Node<T> node, T key, int position)
     {
-        if (node.IsLeaf && node.Keys.Contains(key))
+        Node<T> childNode = node.Children[position];
+        int nodeLength = node.Keys.Count - 1;
+
+        if (childNode.HasMinKeys)
+        {
+            int leftIndex = position - 1;
+            Node<T> leftSibling = position > 0 ? node.Children[leftIndex] : null;
+
+            int rightIndex = position + 1;
+            Node<T> rightSibling = position < nodeLength ? node.Children[rightIndex] : null;
+
+            if (leftSibling != null && leftSibling.Keys.Count >= Degree)
+            {
+                int leftSiblingKeysLenght = leftSibling.Keys.Count - 1;
+                int leftSiblingChildrenLenght = leftSibling.Children.Count - 1;
+
+                childNode.Keys.Insert(0, node.Keys[position]);
+                node.Keys[position] = leftSibling.Keys[leftSiblingKeysLenght];
+                leftSibling.Keys.RemoveAt(leftSiblingKeysLenght);
+
+                if (!leftSibling.IsLeaf)
+                {
+                    childNode.Children.Insert(0, leftSibling.Children.Last());
+                    leftSibling.Children.RemoveAt(leftSiblingChildrenLenght);
+                }
+            }
+
+        }
+    }
+
+    private void DeleteKeyFromNode(Node<T> node, T key, int position)
+    {
+        if (node.IsLeaf)
         {
             node.Keys.Remove(key);
+            return;
         }
 
-        if (node.Children[position].Keys.Count() > Degree)
+        Node<T> predecessorNode = node.Children[position];
+        if (predecessorNode.Keys.Count >= Degree)
         {
-
+            T predecessor = DeletePredecessor(predecessorNode);
+            node.Keys[position] = predecessor;
+            return;
         }
+
+        Node<T> successorNode = node.Children[position + 1];
+        if (successorNode.Keys.Count >= Degree)
+        {
+            T successor = DeleteSuccessor(successorNode);
+            node.Keys[position] = successor;
+            return;
+        }
+
+        MergeSuccessorAndPredecessor(node, predecessorNode, successorNode, position);
+    }
+
+    private static void MergeSuccessorAndPredecessor(Node<T> node, Node<T> predecessorNode, Node<T> successorNode, int position)
+    {
+        // Merge successor and predecessor into one node
+        predecessorNode.Keys.Add(node.Keys[position]);
+        predecessorNode.Keys.AddRange(successorNode.Keys);
+        predecessorNode.Children.AddRange(successorNode.Children);
+
+        // Remove merged Key and Child from parent node
+        node.Keys.RemoveAt(position);
+        node.Children.RemoveAt(position + 1);
+    }
+
+    private static T DeleteSuccessor(Node<T> successorNode)
+    {
+        if (successorNode.IsLeaf)
+        {
+            T result = successorNode.Keys[0];
+            successorNode.Keys.RemoveAt(0);
+            return result;
+        }
+
+        return DeleteSuccessor(successorNode);
+    }
+
+    private static T DeletePredecessor(Node<T> predecessorNode)
+    {
+        if (predecessorNode.IsLeaf)
+        {
+            int nodeLength = predecessorNode.Keys.Count - 1;
+            T result = predecessorNode.Keys[nodeLength];
+            predecessorNode.Keys.RemoveAt(nodeLength);
+            return result;
+        }
+
+        return DeletePredecessor(predecessorNode);
+    }
+
+    private static void DeleteKeyFromInternalNodeAndMergeLeaf(Node<T> node, int position, T key)
+    {
+        node.Keys.Remove(key);
+        node.Children[position].Keys.AddRange(node.Children[position + 1].Keys);
+    }
+
+    private static void DeleteKeyFromInternalNode(Node<T> node, int position, T key)
+    {
+        node.Keys.Remove(key);
+        node.Keys.Insert(position - 1, node.Children[position].Keys.First());
+        node.Children[position].Keys.Remove(node.Children[position].Keys.First());
     }
 
     public void PrintTree()
